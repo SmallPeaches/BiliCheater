@@ -1,0 +1,8 @@
+*.txt
+*.json
+*.exe
+*.pyc
+*.pyi
+*.yml
+.vscode/
+test*
