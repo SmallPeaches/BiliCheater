@@ -4,5 +4,9 @@
 *.pyc
 *.pyi
 *.yml
+
 .vscode/
+logs/
+
 test*
+temp*
