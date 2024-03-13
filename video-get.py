@@ -15,12 +15,16 @@ def download_one(url, path):
     uuid = random.randint(0, 100000)
     cmd = ['yutto', '-w', '-b', '--no-danmaku', '--no-subtitle']
     cmd += ['-d', path, '-tp', r'{name}-'+str(uuid)]
-    cmd += ['--no-color']
+    cmd += ['--no-color', '--no-progress']
     cmd += [url]
     print(f'Downloading {url}...')
-    with open(os.path.join(path,f'yutto-{uuid}.log'), 'w') as log:
-        proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)
-        proc.wait()
+    try:
+        with open(os.path.join(path,f'yutto-{uuid}.log'), 'w') as log:
+            proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, encoding='utf8')
+            proc.wait(timeout=3600)
+    except subprocess.TimeoutExpired:
+        print(f'Download {url} timeout, kill.')
+        proc.kill()
     files = glob.glob(os.path.join(path, f'*-{uuid}.*'))
     filesize = sum([os.path.getsize(f) for f in files])/1024/1024
     global total_size

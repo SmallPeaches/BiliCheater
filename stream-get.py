@@ -18,19 +18,19 @@ def is_ipv6(address):
     except ipaddress.AddressValueError:
         return False
 
-APEX_PAGE_URL = 'https://api.live.bilibili.com/xlive/web-interface/v1/second/getList?platform=web&parent_area_id=2&area_id=240&sort_type=online&page=1'
 HEADERS = {
     'referer': 'https://live.bilibili.com',
     'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54',
 }
 
 class StreamGet():
-    def __init__(self, nthreads=2, rids=None, ipv6=False):
+    def __init__(self, nthreads=2, ipv6=False, limit=None, rids=None, ):
         self.count_q = queue.Queue()
         self.url_q = queue.Queue()
         self.nthreads = nthreads
         self.rids = rids or []
         self.ipv6 = ipv6
+        self.limit = 2**64 if not limit else int(limit)
         self.sess = requests.Session()
 
     def download_one(self):
@@ -44,12 +44,27 @@ class StreamGet():
                 for _ in range(256):
                     index = self.sess.get(url, headers=HEADERS, timeout=5).text
                     m3u8_obj = m3u8.loads(index, uri=url)
+                    while not m3u8_obj.segments:
+                        if not m3u8_obj.playlists:
+                            raise Exception('No segments found.')
+                        index = self.sess.get(m3u8_obj.playlists[0].absolute_uri, headers=HEADERS, timeout=5).text
+                        m3u8_obj = m3u8.loads(index, uri=url)
                     for seg in m3u8_obj.segments:
-                        resp = self.sess.get(seg.absolute_uri, headers=HEADERS, timeout=5)
+                        resp = self.sess.get(seg.absolute_uri, headers=HEADERS, timeout=5, stream=True)
                         if resp.status_code != 200:
                             print(f'Error: {resp.status_code}.')
                             break
-                        self.count_q.put(len(resp.content))
+                        while 1:
+                            if self.total_this_second < self.limit*1024:
+                                try:
+                                    chunk = next(resp.iter_content(chunk_size=1024))
+                                    self.total_this_second += len(chunk)
+                                    self.count_q.put(len(chunk))
+                                except StopIteration:
+                                    break
+                            else:
+                                time.sleep(0.1)
+                                continue
             except Exception as e:
                 print(e)
     
@@ -85,6 +100,7 @@ class StreamGet():
         t0 = datetime.now().timestamp()
         total = 0
         while 1:
+            self.total_this_second = 0
             t2 = datetime.now().timestamp()
             time.sleep(1)
             cnt = 0
@@ -152,9 +168,10 @@ class StreamGet():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--nthreads', type=int, default=4, help='Number of threads.')
+    parser.add_argument('-l', '--limit', type=int, default=0, help='Speed limit in KB/s.')
     parser.add_argument('-6', '--ipv6', action='store_true', help='Prefer IPv6.', default=False)
     args = parser.parse_args()
-    sg = StreamGet(nthreads=args.nthreads, ipv6=args.ipv6)
+    sg = StreamGet(nthreads=args.nthreads, ipv6=args.ipv6, limit=args.limit)
     
     old_getaddrinfo = socket.getaddrinfo
     def getaddrinfo_v6(*args):
