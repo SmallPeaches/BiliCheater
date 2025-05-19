@@ -1,15 +1,20 @@
+import os
 import subprocess
 import time
 import yaml
 
-def append(video, bvid):
-    upload_args = BASE_ARGS + ['append', '--vid', bvid, '--limit', '5']
+def append(video, bvid, timeout=None, extra_args=None):
+    upload_args = BASE_ARGS + ['append', '--vid', bvid, '--limit', '20']
+    if extra_args:  upload_args += extra_args
     if isinstance(video, str):
         upload_args += [video]
     elif isinstance(video, list):
         upload_args += video
     print(f'biliuprs: {upload_args}')
-    return subprocess.Popen(upload_args).wait()
+    if timeout:
+        return subprocess.Popen(upload_args).wait(timeout=timeout)
+    else:
+        return subprocess.Popen(upload_args).wait()
 
 def upload(
         video:str,
@@ -20,7 +25,6 @@ def upload(
         dtime:int=0,
         dynamic:str='',
         interactive:int=0,
-        line:str='kodo',
         limit:int=3,
         no_reprint:int=1,
         open_elec:int=1,
@@ -42,7 +46,6 @@ def upload(
             '--dtime', dtime,
             '--dynamic', dynamic,
             '--interactive', interactive,
-            '--line', line,
             '--limit', limit,
             '--no-reprint', no_reprint,
             '--open-elec', open_elec,
@@ -61,28 +64,36 @@ def upload(
 
         return subprocess.Popen(upload_args).wait()
 
+with open(os.path.join(os.path.split(__file__)[0],'UPLOAD_VIDEO.yml'),'r',encoding='utf-8') as f:
+    config = yaml.safe_load(f)
+    if config.get('cookies'):   
+        COOKIES = config['cookies']
+
+BASE_ARGS = ['login_info/biliup.exe', '-u', COOKIES]
+
 if __name__ == '__main__':
-    COOKIES = ''
-    with open('UPLOAD_VIDEO.yml','r',encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-        if config.get('cookies'):   
-            COOKIES = config['cookies']
-    BASE_ARGS = ['login_info/biliup.exe', '-u', COOKIES]
     VIDEO = config['videos']
     if isinstance(VIDEO, str):
-        VIDEO = [VIDEO]
+        if os.path.isfile(VIDEO):
+            VIDEO = [VIDEO]
+        elif os.path.isdir(VIDEO):
+            VIDEO = [os.path.join(VIDEO, x) for x in os.listdir(VIDEO)]
+            VIDEO = sorted(VIDEO)
+        else:
+            raise ValueError('Invalid video path.')
     VIDEO = [x for x in VIDEO if x]
+
     if len(VIDEO) > 0:
         bvid = config.get('bvid')
         if bvid:
-            ret_msg = append(VIDEO, bvid)
+            for video in VIDEO:
+                try:
+                    ret_msg = append(video, bvid)
+                except Exception as e:
+                    print(e)
+                    ret_msg = 1
+            # ret_msg = append(VIDEO, bvid)
         else:
             ret_msg = upload(video=VIDEO, **config)
-
-    # VIDEO = r"D:\Videos\Kovaaks\2024.02.15.mp4"
-
-    # ret_msg = upload(video=VIDEO, **config)   #custom
-    # ret_msg = append(VIDEO, 'BV1HK421y7WY')   # kvk
-    # ret_msg = append(VIDEO, 'BV152421F72E')   # firing range
 
     exit(ret_msg)

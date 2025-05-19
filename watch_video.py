@@ -96,9 +96,12 @@ class Watcher():
         self.driver.quit()
 
 class Watch_Bili():
-    def __init__(self, cookies='login_info/bili-main.json'):
-        with open(cookies, encoding='utf8') as f:
-            self.cookies = json.load(f)
+    def __init__(self, cookies=None):
+        if cookies:
+            with open(cookies, encoding='utf8') as f:
+                self.cookies = json.load(f)
+        else:
+            self.cookies = None
 
         # opt = webdriver.EdgeOptions()
         # opt.add_argument('--headless')

@@ -130,6 +130,7 @@ class BiliVideoAPI:
         header = {
             'accept-language': 'en,zh-CN;q=0.9,zh;q=0.8',
             'User-Agent': 'Mozilla/5.0',
+            'referer': 'https://space.bilibili.com',
         }
         cookie = self.cookies.copy()
         cookie['SESSDATA'] = ''
@@ -151,6 +152,7 @@ class BiliVideoAPI:
                 "dm_img_str": dm_img_str,
                 "dm_cover_img_str": dm_cover_img_str,
                 "dm_img_inter": dm_img_inter,
+                'w_webid': getWebid(user_id),
             },
             img_key=self.img_key,
             sub_key=self.sub_key,
@@ -166,9 +168,17 @@ class BiliVideoAPI:
     def get_user_info(self, user_id):
         params = encWbi({
             'mid': user_id,
+            'w_webid': getWebid(user_id),
             },
             img_key=self.img_key, sub_key=self.sub_key,
         )
-        resp = self.sess.get('https://api.bilibili.com/x/space/wbi/acc/info', params=params).json()
+        cookie = self.cookies.copy()
+        cookie['SESSDATA'] = ''
+        resp = self.sess.get(
+            'https://api.bilibili.com/x/space/wbi/acc/info', 
+            params=params, 
+            headers=self.headers,
+            cookies=cookie,
+        ).json()
         return resp['data']
     

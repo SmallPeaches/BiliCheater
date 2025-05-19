@@ -3,6 +3,7 @@ from hashlib import md5
 from concurrent.futures import ThreadPoolExecutor
 import urllib.parse
 import time
+import httpx
 import requests
 import asyncio, aiohttp
 
@@ -10,6 +11,18 @@ HEADERS = {
     'referer': 'https://live.bilibili.com',
     'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54',
 }
+
+def getWebid(uid):
+    dynamic_url = f"https://space.bilibili.com/{uid}/dynamic"
+    text = httpx.get(dynamic_url, headers=HEADERS).text
+    __RENDER_DATA__ = re.search(
+        r"<script id=\"__RENDER_DATA__\" type=\"application/json\">(.*?)</script>",
+        text,
+        re.S,
+    ).group(1)
+    access_id = json.loads(urllib.parse.unquote(__RENDER_DATA__))["access_id"]
+    return access_id
+
 mixinKeyEncTab = [
     46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,
     33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13, 37, 48, 7, 16, 24, 55, 40,

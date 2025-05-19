@@ -4,6 +4,11 @@
 *.pyc
 *.pyi
 *.yml
+*.mp4
+*.mp3
+*.aac
+*.ts
+*.flv
 
 .vscode/
 logs/
